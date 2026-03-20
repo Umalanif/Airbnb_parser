@@ -40,23 +40,48 @@ function extractPriceFromResponse(data) {
   }
   
   const sections = data.data.presentation.stayProductDetailPage.sections.sections;
-  const bookItSidebar = sections.find(s => s.sectionId === 'BOOK_IT_SIDEBAR');
   
-  if (!bookItSidebar?.section?.pricing?.price) {
+  const bookItSection = sections.find(s => 
+    s.sectionId === 'BOOK_IT_CALENDAR_SHEET' || s.sectionId === 'BOOK_IT_SIDEBAR'
+  );
+  
+  if (!bookItSection?.section) {
     return { error: null, price: null };
   }
   
-  const priceData = bookItSidebar.section.pricing.price;
+  const section = bookItSection.section;
+  
+  let priceValue = null;
+  let currency = 'EUR';
+  let formatted = null;
+  
+  if (section.structuredDisplayPrice?.primaryLine?.price) {
+    const priceStr = section.structuredDisplayPrice.primaryLine.price;
+    const match = priceStr.match(/[€$£]?\s*([\d,]+)/);
+    if (match) {
+      priceValue = parseFloat(match[1].replace(',', '.'));
+    }
+    formatted = priceStr;
+  } else if (section.pricing?.price) {
+    const priceData = section.pricing.price;
+    priceValue = priceData.amount !== null ? priceData.amount / 1000000 : null;
+    currency = priceData.currency;
+    formatted = priceData.formattedAmount;
+  }
+  
+  if (priceValue === null) {
+    return { error: null, price: null };
+  }
   
   return {
-    price: priceData.amount !== null ? priceData.amount / 1000000 : null,
-    currency: priceData.currency,
-    formatted: priceData.formattedAmount,
+    price: priceValue,
+    currency,
+    formatted,
   };
 }
 
 export {
-  AirbnbResponseSchema,
+  AirbnbResponseSchema as airbnbResponseSchema,
   extractPriceFromResponse,
   BookItSidebarSectionSchema,
 };

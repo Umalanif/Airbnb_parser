@@ -3,8 +3,8 @@ import { parentPort, workerData } from 'worker_threads';
 import { PrismaClient } from '@prisma/client';
 import { gotScraping } from 'got-scraping';
 import logger from '../src/utils/logger.js';
-import { buildAirbnbApiUrl } from '../src/utils/url-builder.js';
-import { extractPriceFromResponse } from '../src/schemas/airbnb-response.js';
+import { buildAirbnbUrl } from '../src/utils/url-builder.js';
+import { extractPriceFromResponse, airbnbResponseSchema } from '../src/schemas/airbnb-response.js';
 
 const SESSION_ID = 'airbnb_main';
 
@@ -27,53 +27,79 @@ async function main() {
       return;
     }
 
-    const listingId = workerData?.listingId || process.env.LISTING_ID || '12345678';
-    const checkIn = workerData?.checkIn || process.env.CHECK_IN || '2026-04-01';
-    const checkOut = workerData?.checkOut || process.env.CHECK_OUT || '2026-04-07';
-
-    const url = buildAirbnbApiUrl(listingId, checkIn, checkOut, {
-      locale: 'en',
-      currency: 'EUR',
+    const listings = await prisma.listing.findMany({
+      where: { isActive: true },
     });
 
-    const headers = {
-      'cookie': session.cookie,
-      'x-airbnb-api-key': session.xAirbnbApiKey,
-      'user-agent': session.userAgent,
-      'sec-ch-ua': '"Chromium";v="146", "Not:A-Brand";v="24"',
-      'sec-ch-ua-platform': '"Windows"',
-      'x-airbnb-graphql-platform': 'web',
-    };
-
-    logger.info({ url, listingId, checkIn, checkOut }, 'Fetching price from Airbnb');
-
-    const response = await gotScraping.get(url, { headers });
-    const data = JSON.parse(response.body);
-
-    const priceResult = extractPriceFromResponse(data);
-
-    if (priceResult.error) {
-      logger.error({ error: priceResult.error.format() }, 'Failed to parse response');
+    if (listings.length === 0) {
+      logger.warn('No active listings found');
       return;
     }
 
-    if (priceResult.price === null) {
-      logger.warn({ listingId }, 'Price not found in response');
-      return;
-    }
+    for (const listing of listings) {
+      if (isShuttingDown) {
+        logger.info('Worker cancelled during iteration');
+        break;
+      }
 
-    await prisma.priceLog.create({
-      data: {
-        listingId,
-        price: priceResult.price,
-        currency: priceResult.currency || 'EUR',
-      },
-    });
+      const listingId = workerData?.listingId || listing.id;
+      const checkIn = workerData?.checkIn || process.env.CHECK_IN || '2026-04-15';
+      const checkOut = workerData?.checkOut || process.env.CHECK_OUT || '2026-04-20';
 
-    logger.info({ listingId, price: priceResult.price, currency: priceResult.currency }, 'Price saved to database');
+      const url = buildAirbnbUrl(listingId, checkIn, checkOut, {
+        locale: 'en',
+        currency: 'EUR',
+      });
 
-    if (parentPort) {
-      parentPort.postMessage({ status: 'completed', listingId, price: priceResult.price });
+      const headers = {
+        'cookie': session.cookie,
+        'x-airbnb-api-key': session.xAirbnbApiKey,
+        'user-agent': session.userAgent,
+        'sec-ch-ua': '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
+        'sec-ch-ua-platform': '"Windows"',
+        'x-airbnb-graphql-platform': 'web',
+      };
+
+      logger.info({ url, listingId, checkIn, checkOut }, 'Fetching price from Airbnb');
+
+      logger.info({ url: url.toString() }, 'Final Request URL');
+
+      const response = await gotScraping.get(url, { headers });
+      logger.info({ body: response.body }, 'Raw API Response');
+
+      const data = JSON.parse(response.body);
+
+      const parseResult = airbnbResponseSchema.safeParse(data);
+      if (!parseResult.success) {
+        logger.error({ error: parseResult.error.format() }, 'Response validation failed');
+        continue;
+      }
+
+      const priceResult = extractPriceFromResponse(data);
+
+      if (priceResult.error) {
+        logger.error({ error: priceResult.error.format() }, 'Failed to parse response');
+        continue;
+      }
+
+      if (priceResult.price === null) {
+        logger.warn({ listingId }, 'Price not found in response');
+        continue;
+      }
+
+      await prisma.priceLog.create({
+        data: {
+          listingId,
+          price: priceResult.price,
+          currency: priceResult.currency || 'EUR',
+        },
+      });
+
+      logger.info({ listingId, price: priceResult.price, currency: priceResult.currency }, 'Price saved to database');
+
+      if (parentPort) {
+        parentPort.postMessage({ status: 'completed', listingId, price: priceResult.price });
+      }
     }
 
   } catch (error) {

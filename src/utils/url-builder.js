@@ -10,6 +10,16 @@
  * @param {string} [options.pdpTypeOverride=null] - PDP type override
  * @returns {string} Fully constructed URL with encoded query parameters
  */
+
+/**
+ * Encodes a numeric listing ID to Base64 format for Airbnb API
+ * @param {string|number} listingId - The numeric listing ID
+ * @returns {string} Base64 encoded string in format StayListing:{numericId}
+ */
+export function encodeListingId(listingId) {
+  return Buffer.from(`StayListing:${listingId}`).toString('base64');
+}
+
 export function buildAirbnbApiUrl(listingId, checkIn, checkOut, options = {}) {
   const {
     locale = 'en',
@@ -127,3 +137,5 @@ export function buildAirbnbApiUrl(listingId, checkIn, checkOut, options = {}) {
 
   return url.toString();
 }
+
+export const buildAirbnbUrl = buildAirbnbApiUrl;
