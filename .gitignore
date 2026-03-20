@@ -5,3 +5,22 @@ node_modules/
 .DS_Store
 dist/
 build/
+
+# Database
+*.db
+*.db.backup
+prisma/*.db
+
+# Backups and temp files
+*.backup
+temp-*.js
+
+# Tests
+tests/
+
+# Source (if not meant to be shared)
+src/
+index.js
+
+# Storage
+storage/
