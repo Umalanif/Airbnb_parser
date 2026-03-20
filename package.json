@@ -5,13 +5,19 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "parser": "node jobs/parser.js"
+    "parser": "node jobs/parser.js",
+    "test:notification": "node tests/test-notification-gateway.js",
+    "test:orchestrator": "node tests/test-orchestrator.js",
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.19.2",
+    "bottleneck": "^2.19.5",
+    "bree": "^9.2.9",
+    "crawlee": "^3.16.0",
     "dotenv": "^17.3.1",
     "got-scraping": "^4.2.1",
     "pino": "^10.3.1",
