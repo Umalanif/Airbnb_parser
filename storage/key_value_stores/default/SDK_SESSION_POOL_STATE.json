@@ -1,0 +1,81 @@
+{
+  "usableSessionsCount": 1,
+  "retiredSessionsCount": 0,
+  "sessions": [
+    {
+      "id": "session_JCgtoa4KEr",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.1",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": [
+          {
+            "key": "bev",
+            "value": "1774113304_EANmZjZGM0OTk5ZT",
+            "expires": "2028-03-20T17:15:04.000Z",
+            "domain": "airbnb.com",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-03-21T17:15:03.531Z",
+            "lastAccessed": "2026-03-21T17:15:03.537Z"
+          },
+          {
+            "key": "everest_cookie",
+            "value": "1774113304.EAYTA0ZjU3YjM3ZjA2ZD.AN01ggDVeIp7zTzOKbWGbAD2phDNPcTWKFUkN1qUxNY",
+            "expires": "2029-03-20T17:15:04.000Z",
+            "domain": "airbnb.com",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-03-21T17:15:03.536Z",
+            "lastAccessed": "2026-03-21T17:15:03.536Z"
+          },
+          {
+            "key": "country",
+            "value": "RU",
+            "domain": "airbnb.com",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-03-21T17:15:03.537Z",
+            "lastAccessed": "2026-03-21T17:15:03.537Z"
+          },
+          {
+            "key": "cdn_exp_abd8871b54fcbadab",
+            "value": "treatment",
+            "expires": "2026-05-20T17:15:04.000Z",
+            "domain": "airbnb.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-03-21T17:15:03.537Z",
+            "lastAccessed": "2026-03-21T17:15:03.537Z"
+          },
+          {
+            "key": "ak_bmsc",
+            "value": "07C2EE9C82F04E07B1DCE82D09C3D83C~000000000000000000000000000000~YAAQzJyb1bPdgfWcAQAAba5kER9qdgccy4yQhi+m5DSyzcSBdkU4vJxosgUEdSb0pQNx23Ytjj6FMfLwCzmHXMDYcBQ2ynkILm+6zvLk88/wzc0xIWLXLbaf3RvCPFKSV1uLkrsMLCMrSwOEKcpJreFx84FHiAoZXXtwnAyjdr3A9TgUfxoAxczpDlxqPV3P2QIebKnQ5tQggAlq/NMMQI3bSLzHJmJuDOVQUUHgr6ajfwK4HjIA60xl9v4lVNPkyfgn75zCrKBV+PInVUQcuBiAmYqtoNiYuBpfj0SUTW4BDTEKi+pqJ4iIuMHEDTG172A8grwtr1HkJgOPubXfhOUzV4K7Lkrai8WuLfGcMKalMHzhFvEsG+MxLii5yy+UBsk=",
+            "expires": "2026-03-21T19:15:04.000Z",
+            "maxAge": 7200,
+            "domain": "airbnb.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": false,
+            "creation": "2026-03-21T17:15:03.537Z",
+            "lastAccessed": "2026-03-21T17:15:03.537Z"
+          }
+        ]
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-03-21T18:05:03.118Z",
+      "createdAt": "2026-03-21T17:15:03.118Z",
+      "usageCount": 1,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    }
+  ]
+}

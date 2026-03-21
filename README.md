@@ -2,7 +2,7 @@
 
 Autonomous monitoring system for tracking Airbnb listing prices and availability status with real-time Telegram notifications.
 
-## 📋 Features
+## Features
 
 - **Automated Price Monitoring** — Periodic scraping of Airbnb listings using Crawlee (CheerioCrawler)
 - **Delta Detection** — Tracks price changes and availability status
@@ -11,11 +11,11 @@ Autonomous monitoring system for tracking Airbnb listing prices and availability
 - **Graceful Shutdown** — Proper cleanup of workers and database connections
 - **Anti-Bot Protection** — Handles 403/429 errors with automatic backoff and teardown
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| Runtime | Node.js (ES Modules) |
+| Runtime | Node.js 18+ (ES Modules) |
 | Orchestrator | Bree.js |
 | Web Scraping | Crawlee (CheerioCrawler) |
 | Database | SQLite + Prisma ORM |
@@ -23,7 +23,7 @@ Autonomous monitoring system for tracking Airbnb listing prices and availability
 | Logging | Pino |
 | Notifications | Telegram Bot API + Bottleneck |
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -69,7 +69,7 @@ Autonomous monitoring system for tracking Airbnb listing prices and availability
    npx prisma db push
    ```
 
-## 🚀 Usage
+## Usage
 
 ### Start the Application
 
@@ -97,7 +97,7 @@ npm run test:notification
 npm run test:orchestrator
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 AirBnb/
@@ -110,15 +110,20 @@ AirBnb/
 │   └── dev.db               # SQLite database (not committed)
 ├── src/
 │   ├── schemas/             # Zod validation schemas
-│   ├── services/            # Business logic (Telegram notifications)
-│   └── utils/               # Utilities (logger, URL builder)
+│   │   ├── airbnb-response.js
+│   │   └── price-log.js
+│   ├── services/            # Business logic
+│   │   └── telegram-notification-service.js
+│   └── utils/               # Utilities
+│       ├── logger.js
+│       └── url-builder.js
 ├── tests/                   # Test scripts
-├── utils/                   # Additional utilities
 ├── storage/                 # SQLite database storage
-└── .env                     # Environment configuration
+├── .env                     # Environment configuration (not committed)
+└── package.json
 ```
 
-## 🗄️ Database Schema
+## Database Schema
 
 ### Session
 Stores Airbnb API session credentials (cookie, API key, user-agent).
@@ -138,7 +143,7 @@ Stores Airbnb API session credentials (cookie, API key, user-agent).
 - `isAvailable` — Availability status
 - `delta` — Price change from previous reading
 
-## 📝 Adding Listings
+## Adding Listings
 
 To add listings to monitor, insert records into the database:
 
@@ -156,7 +161,7 @@ await prisma.listing.create({
 });
 ```
 
-## 🔧 Configuration Options
+## Configuration Options
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -167,13 +172,13 @@ await prisma.listing.create({
 | `FORTY_THREE_THRESHOLD` | `5` | 403 errors before teardown |
 | `PROXY_URLS` | — | Comma-separated proxy URLs |
 
-## 🚨 Error Handling
+## Error Handling
 
 - **403 Forbidden** — Tracked with counter; after threshold, crawler teardown and system alert
 - **429 Too Many Requests** — Automatic 5-second backoff
 - **Network Errors** — Logged and skipped; doesn't stop the crawl
 
-## 📊 Logging
+## Logging
 
 Logs are output in JSON format using Pino. For pretty printing in development:
 
@@ -181,7 +186,7 @@ Logs are output in JSON format using Pino. For pretty printing in development:
 node index.js | npx pino-pretty
 ```
 
-## 🧪 Testing
+## Testing
 
 Run smoke tests to verify components:
 
@@ -193,6 +198,6 @@ npm run test:notification
 npm run test:orchestrator
 ```
 
-## 📄 License
+## License
 
 ISC

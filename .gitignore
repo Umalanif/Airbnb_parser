@@ -14,10 +14,12 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+logs/
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Build outputs
 dist/
@@ -25,6 +27,7 @@ build/
 
 # Database (SQLite)
 *.db
+*.db-journal
 *.db.backup
 prisma/*.db
 storage/*.db
@@ -32,6 +35,9 @@ storage/*.db
 # Backups and temp files
 *.backup
 temp-*.js
+test-*.js
+old-*.js
+*-backup.js
 
 # IDE
 .idea/
@@ -46,3 +52,12 @@ coverage/
 # Playwright
 playwright-report/
 test-results/
+
+# Temporary and output directories
+temp/
+output/
+tmp/
+
+# Shutdown test files
+.shutdown
+.shutdown_test
