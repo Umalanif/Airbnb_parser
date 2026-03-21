@@ -208,6 +208,17 @@ async function main() {
           // Parse JSON response (Airbnb API returns JSON)
           const data = JSON.parse(body?.toString() || '{}');
 
+          // Handle case when API returns null data (invalid listing, auth issue, etc.)
+          if (!data?.data) {
+            if (data?.errors?.length > 0) {
+              logger.warn({ listingId, errors: data.errors }, 'API returned errors');
+            } else {
+              logger.warn({ listingId }, 'API returned null data - listing may be unavailable');
+            }
+            // Skip this listing - don't count as error
+            return;
+          }
+
           const parseResult = airbnbResponseSchema.safeParse(data);
           if (!parseResult.success) {
             logger.error({ error: parseResult.error.format(), listingId }, 'Response validation failed');
@@ -224,8 +235,9 @@ async function main() {
           }
 
           if (priceResult.price === null) {
-            logger.warn({ listingId }, 'Price not found in response');
-            errorCount++;
+            logger.warn({ listingId }, 'Price not found in response - listing may be unavailable or invalid');
+            // Don't count as error - this is expected for unavailable listings
+            // Just skip this listing
             return;
           }
 

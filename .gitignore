@@ -1,26 +1,48 @@
+# Dependencies
 node_modules/
+.pnpm-store/
+
+# Environment variables
 .env
 .env.local
+.env.*.local
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Build outputs
 dist/
 build/
 
-# Database
+# Database (SQLite)
 *.db
 *.db.backup
 prisma/*.db
+storage/*.db
 
 # Backups and temp files
 *.backup
 temp-*.js
 
-# Tests
-tests/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-# Source (if not meant to be shared)
-src/
-index.js
+# Test coverage
+coverage/
 
-# Storage
-storage/
+# Playwright
+playwright-report/
+test-results/

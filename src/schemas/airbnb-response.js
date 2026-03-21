@@ -24,37 +24,55 @@ const StayProductDetailPageSchema = z.object({
   }),
 });
 
-const AirbnbResponseSchema = z.object({
-  data: z.object({
-    presentation: z.object({
-      stayProductDetailPage: StayProductDetailPageSchema,
-    }),
+const ValidDataSchema = z.object({
+  presentation: z.object({
+    stayProductDetailPage: StayProductDetailPageSchema,
   }),
 });
 
+// Schema that properly handles null or missing data field
+const AirbnbResponseSchema = z.object({
+  data: ValidDataSchema.nullable().nullish(),
+  errors: z.array(z.any()).optional(),
+  message: z.string().optional(),
+});
+
 function extractPriceFromResponse(data) {
-  const parseResult = AirbnbResponseSchema.safeParse(data);
-  
-  if (!parseResult.success) {
-    return { error: parseResult.error };
+  // Handle API errors or invalid listings (data is null/undefined)
+  if (!data?.data) {
+    // Check if there's an error message from the API
+    if (data?.errors?.length > 0) {
+      return { error: new Error(`API error: ${JSON.stringify(data.errors)}`), price: null };
+    }
+    if (data?.message) {
+      return { error: new Error(data.message), price: null };
+    }
+    // Listing unavailable or invalid
+    return { error: null, price: null };
   }
-  
+
+  const parseResult = AirbnbResponseSchema.safeParse(data);
+
+  if (!parseResult.success) {
+    return { error: parseResult.error, price: null };
+  }
+
   const sections = data.data.presentation.stayProductDetailPage.sections.sections;
-  
-  const bookItSection = sections.find(s => 
+
+  const bookItSection = sections.find(s =>
     s.sectionId === 'BOOK_IT_CALENDAR_SHEET' || s.sectionId === 'BOOK_IT_SIDEBAR'
   );
-  
+
   if (!bookItSection?.section) {
     return { error: null, price: null };
   }
-  
+
   const section = bookItSection.section;
-  
+
   let priceValue = null;
   let currency = 'EUR';
   let formatted = null;
-  
+
   if (section.structuredDisplayPrice?.primaryLine?.price) {
     const priceStr = section.structuredDisplayPrice.primaryLine.price;
     const match = priceStr.match(/[€$£]?\s*([\d,]+)/);
@@ -68,11 +86,11 @@ function extractPriceFromResponse(data) {
     currency = priceData.currency;
     formatted = priceData.formattedAmount;
   }
-  
+
   if (priceValue === null) {
     return { error: null, price: null };
   }
-  
+
   return {
     price: priceValue,
     currency,
