@@ -14,12 +14,12 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-logs/
 
 # OS files
 .DS_Store
 Thumbs.db
 desktop.ini
+$null
 
 # Build outputs
 dist/
@@ -61,3 +61,14 @@ tmp/
 # Shutdown test files
 .shutdown
 .shutdown_test
+
+# Storage (Crawlee/Bree runtime data)
+storage/request_queues/
+storage/key_value_stores/
+storage/datasets/
+
+# Documentation (development only)
+Plan.md
+Wall.md
+handoff.md
+airbnb_blueprint.json

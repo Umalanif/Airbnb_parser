@@ -20,6 +20,8 @@ model Listing {
   id        String   @id
   url       String   @unique
   title     String
+  checkIn   String   @default("2026-04-15")
+  checkOut  String   @default("2026-04-20")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -32,7 +34,7 @@ model Listing {
 model PriceLog {
   id          String   @id @default(uuid())
   listingId   String   @map("listing_id")
-  price       Float
+  price       Float?
   currency    String
   capturedAt  DateTime @default(now()) @map("captured_at")
   isAvailable Boolean  @default(true) @map("is_available")

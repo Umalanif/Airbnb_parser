@@ -3,10 +3,11 @@ import { z } from 'zod';
 /**
  * Schema for price log data before writing to database
  * Ensures data integrity and type safety
+ * Price is nullable to support "Sold Out" status
  */
 export const PriceLogInputSchema = z.object({
   listingId: z.string().min(1, 'Listing ID is required'),
-  price: z.number().positive('Price must be positive'),
+  price: z.number().positive('Price must be positive').nullable(),
   currency: z.string().length(3, 'Currency must be 3-letter code'),
   isAvailable: z.boolean(),
   delta: z.number().default(0),
@@ -25,12 +26,12 @@ export const DeltaResultSchema = z.object({
 
 /**
  * Calculate delta between current and previous price
- * @param {number} currentPrice - Current price
- * @param {number | null} previousPrice - Previous price (null if no previous record)
- * @returns {number} Delta value (current - previous)
+ * @param {number | null} currentPrice - Current price (null if sold out)
+ * @param {number | null} previousPrice - Previous price (null if no previous record or sold out)
+ * @returns {number} Delta value (current - previous), or 0 if either price is null
  */
 export function calculateDelta(currentPrice, previousPrice) {
-  if (previousPrice === null || previousPrice === undefined) {
+  if (currentPrice === null || currentPrice === undefined || previousPrice === null || previousPrice === undefined) {
     return 0;
   }
   return currentPrice - previousPrice;

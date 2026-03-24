@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { parentPort, workerData } from 'worker_threads';
 import { PrismaClient } from '@prisma/client';
 import { CheerioCrawler, RequestQueue, ProxyConfiguration } from 'crawlee';
+import Bottleneck from 'bottleneck';
 import logger from '../src/utils/logger.js';
 import { buildAirbnbUrl } from '../src/utils/url-builder.js';
 import { extractPriceFromResponse, airbnbResponseSchema } from '../src/schemas/airbnb-response.js';
@@ -10,6 +11,9 @@ import TelegramNotificationService from '../src/services/telegram-notification-s
 
 const SESSION_ID = 'airbnb_main';
 const FORTY_THREE_THRESHOLD = parseInt(process.env.FORTY_THREE_THRESHOLD || '5', 10);
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '10', 10);
+const JITTER_MIN_MS = parseInt(process.env.JITTER_MIN_MS || '2000', 10);
+const JITTER_MAX_MS = parseInt(process.env.JITTER_MAX_MS || '5000', 10);
 
 let isShuttingDown = false;
 let consecutive403Count = 0;
@@ -48,6 +52,80 @@ function setupCancellationHandlers() {
   });
 }
 
+/**
+ * Write sold-out/unavailable listing to database
+ * @param {Object} params - Parameters
+ * @param {string} params.listingId - Listing ID
+ * @param {string} params.listingTitle - Listing title
+ * @param {Object} params.prisma - Prisma client instance
+ * @param {Object} params.notificationService - Telegram notification service (optional)
+ * @param {number|null} params.price - Price (null if sold out)
+ * @param {string} params.currency - Currency code
+ * @returns {Promise<boolean>} True if successful
+ */
+async function writeSoldOutListing({ listingId, listingTitle, prisma, notificationService, price = null, currency = 'EUR' }) {
+  const isAvailable = false;
+
+  // Delta Detection: Fetch previous price BEFORE writing new log
+  const previousLogs = await prisma.priceLog.findMany({
+    where: { listingId },
+    orderBy: { capturedAt: 'desc' },
+    take: 1,
+  });
+
+  const previousLog = previousLogs.length > 0 ? previousLogs[0] : null;
+  const previousPrice = previousLog ? previousLog.price : null;
+  const previousIsAvailable = previousLog ? previousLog.isAvailable : null;
+
+  // Calculate delta
+  const delta = calculateDelta(price, previousPrice);
+  const availabilityChanged = hasAvailabilityChanged(isAvailable, previousIsAvailable);
+
+  // Validate data with Zod schema before writing to database
+  const validationResult = PriceLogInputSchema.safeParse({
+    listingId,
+    price,
+    currency,
+    isAvailable,
+    delta,
+  });
+
+  if (!validationResult.success) {
+    logger.error({ error: validationResult.error.format(), listingId }, 'PriceLog validation failed');
+    return false;
+  }
+
+  // Write to database with delta
+  await prisma.priceLog.create({
+    data: validationResult.data,
+  });
+
+  logger.info(
+    { listingId, price, currency, delta, isAvailable },
+    'PriceLog saved (unavailable listing)'
+  );
+
+  // Send business alert if availability changed
+  if (notificationService && availabilityChanged) {
+    notificationService
+      .sendBusinessAlert({
+        listingTitle,
+        listingUrl: `https://www.airbnb.com/rooms/${listingId}`,
+        currentPrice: price,
+        previousPrice: previousPrice !== null ? previousPrice : undefined,
+        delta,
+        currency,
+        isAvailable,
+      })
+      .catch((alertError) => {
+        logger.error({ error: alertError.message, listingId }, 'Failed to send business alert');
+      });
+  }
+
+  sendMessage({ status: 'completed', listingId, price, delta });
+  return true;
+}
+
 async function main() {
   const prisma = new PrismaClient();
   
@@ -76,8 +154,10 @@ async function main() {
       return;
     }
 
+    // Fetch listings in batches using individual checkIn/checkOut from DB
     const listings = await prisma.listing.findMany({
       where: { isActive: true },
+      take: BATCH_SIZE,
     });
 
     if (listings.length === 0) {
@@ -86,15 +166,24 @@ async function main() {
       return;
     }
 
+    logger.info({ count: listings.length, batchSize: BATCH_SIZE }, 'Processing listing batch');
+
     // Create request queue
     const requestQueue = await RequestQueue.open('airbnb-queue');
     await requestQueue.drop(); // Clear queue for fresh start
     const freshQueue = await RequestQueue.open('airbnb-queue');
 
-    // Enqueue all listing URLs
+    // Create bottleneck limiter for jitter (2-5 seconds between requests)
+    const limiter = new Bottleneck({
+      minTime: JITTER_MIN_MS,
+      maxConcurrent: 1,
+    });
+
+    // Enqueue all listing URLs with individual dates from DB
     for (const listing of listings) {
-      const checkIn = workerData?.checkIn || process.env.CHECK_IN || '2026-04-15';
-      const checkOut = workerData?.checkOut || process.env.CHECK_OUT || '2026-04-20';
+      // Use individual checkIn/checkOut from each listing record
+      const checkIn = listing.checkIn;
+      const checkOut = listing.checkOut;
 
       const url = buildAirbnbUrl(listing.id, checkIn, checkOut, {
         locale: 'en',
@@ -107,6 +196,8 @@ async function main() {
         userData: {
           listingId: listing.id,
           listingTitle: listing.title,
+          checkIn,
+          checkOut,
         },
       });
     }
@@ -135,7 +226,14 @@ async function main() {
           return;
         }
 
-        const { listingId, listingTitle } = request.userData;
+        const { listingId, listingTitle, checkIn, checkOut } = request.userData;
+
+        // Apply jitter delay using bottleneck
+        await limiter.schedule(() => {
+          const jitterTime = Math.floor(Math.random() * (JITTER_MAX_MS - JITTER_MIN_MS + 1)) + JITTER_MIN_MS;
+          logger.debug({ listingId, jitterTime }, 'Applying jitter delay');
+          return new Promise(resolve => setTimeout(resolve, jitterTime));
+        });
 
         // Make request with custom headers using sendRequest
         let response;
@@ -215,7 +313,21 @@ async function main() {
             } else {
               logger.warn({ listingId }, 'API returned null data - listing may be unavailable');
             }
-            // Skip this listing - don't count as error
+            // Treat as sold out: write to DB with price: null, isAvailable: false
+            const success = await writeSoldOutListing({
+              listingId,
+              listingTitle,
+              prisma,
+              notificationService,
+              price: null,
+              currency: 'EUR',
+            });
+
+            if (success) {
+              processedCount++;
+            } else {
+              errorCount++;
+            }
             return;
           }
 
@@ -234,16 +346,29 @@ async function main() {
             return;
           }
 
+          // Handle sold out / unavailable listings
           if (priceResult.price === null) {
-            logger.warn({ listingId }, 'Price not found in response - listing may be unavailable or invalid');
-            // Don't count as error - this is expected for unavailable listings
-            // Just skip this listing
+            logger.warn({ listingId }, 'Price not found - marking listing as unavailable (sold out)');
+            const success = await writeSoldOutListing({
+              listingId,
+              listingTitle,
+              prisma,
+              notificationService,
+              price: null,
+              currency: priceResult.currency || 'EUR',
+            });
+
+            if (success) {
+              processedCount++;
+            } else {
+              errorCount++;
+            }
             return;
           }
 
-          // Determine availability status from response
-          // If we got a valid price, the listing is available
+          // Listing is available with a valid price
           const isAvailable = true;
+          const priceToWrite = priceResult.price;
 
           // Delta Detection: Fetch previous price BEFORE writing new log
           const previousLogs = await prisma.priceLog.findMany({
@@ -257,13 +382,13 @@ async function main() {
           const previousIsAvailable = previousLog ? previousLog.isAvailable : null;
 
           // Calculate delta
-          const delta = calculateDelta(priceResult.price, previousPrice);
+          const delta = calculateDelta(priceToWrite, previousPrice);
           const availabilityChanged = hasAvailabilityChanged(isAvailable, previousIsAvailable);
 
           // Validate data with Zod schema before writing to database
           const validationResult = PriceLogInputSchema.safeParse({
             listingId,
-            price: priceResult.price,
+            price: priceToWrite,
             currency: priceResult.currency || 'EUR',
             isAvailable,
             delta,
@@ -281,7 +406,7 @@ async function main() {
           });
 
           logger.info(
-            { listingId, price: priceResult.price, currency: priceResult.currency, delta, isAvailable },
+            { listingId, price: priceToWrite, currency: priceResult.currency, delta, isAvailable },
             'PriceLog saved to database'
           );
           processedCount++;
@@ -293,7 +418,7 @@ async function main() {
               .sendBusinessAlert({
                 listingTitle,
                 listingUrl: `https://www.airbnb.com/rooms/${listingId}`,
-                currentPrice: priceResult.price,
+                currentPrice: priceToWrite,
                 previousPrice: previousPrice !== null ? previousPrice : undefined,
                 delta,
                 currency: priceResult.currency || 'EUR',
@@ -304,7 +429,7 @@ async function main() {
               });
           }
 
-          sendMessage({ status: 'completed', listingId, price: priceResult.price, delta });
+          sendMessage({ status: 'completed', listingId, price: priceToWrite, delta });
         } catch (parseError) {
           logger.error({ error: parseError.message, listingId }, 'Failed to parse response');
           errorCount++;

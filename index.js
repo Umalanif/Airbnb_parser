@@ -1,14 +1,17 @@
 import 'dotenv/config';
 import Bree from 'bree';
+import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { createServer } from './src/server.js';
 import logger from './src/utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Graceful shutdown flag
 let isShuttingDown = false;
+let httpServer = null;
 
 // Test shutdown file path (for smoke test)
 const shutdownFilePath = process.env.TEST_SHUTDOWN_FILE || path.join(__dirname, '.shutdown');
@@ -92,17 +95,29 @@ async function gracefulShutdown(signal) {
     logger.error('Could not close connections in time, forceful exit');
     process.exit(1);
   }, 5000);
-  
+
   // Позволяем таймеру не держать процесс, если всё закроется само раньше
   forceExitTimeout.unref();
 
   logger.info({ signal }, 'Graceful shutdown initiated');
 
   try {
+    // Close HTTP server first
+    if (httpServer) {
+      logger.info('Closing HTTP server...');
+      await new Promise((resolve, reject) => {
+        httpServer.close((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      logger.info('HTTP server closed');
+    }
+
     // Get all active worker names
     const workerNames = Object.keys(bree.workers || {});
     logger.info({ workerNames, workerCount: workerNames.length }, 'Active workers to stop');
-    
+
     // Send cancel message to all active workers
     for (const workerName of workerNames) {
       const worker = bree.workers[workerName];
@@ -157,8 +172,22 @@ async function main() {
     const jobNames = bree.config.jobs.map((job) => (typeof job === 'string' ? job : job.name));
     logger.info({ jobs: jobNames }, 'Active jobs configured');
 
+    // Start Express server on port 3000
+    const port = process.env.PORT || 3000;
+    const { app } = createServer(port);
+    
+    httpServer = app.listen(port, () => {
+      logger.info({ port }, 'Express API server started');
+    });
+
+    // Handle HTTP server errors
+    httpServer.on('error', (error) => {
+      logger.error({ error: error.message }, 'Express server error');
+    });
+
     // Keep the process alive
     logger.info('Orchestrator running. Press Ctrl+C to stop.');
+    logger.info(`API available at http://localhost:${port}`);
   } catch (error) {
     logger.error({ error: error.message }, 'Failed to start Bree');
     process.exit(1);
