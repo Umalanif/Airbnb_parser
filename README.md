@@ -10,6 +10,8 @@ Autonomous monitoring system for tracking Airbnb listing prices and availability
 - **Rate Limit Protection** — Built-in Bottleneck integration to prevent API throttling
 - **Graceful Shutdown** — Proper cleanup of workers and database connections
 - **Anti-Bot Protection** — Handles 403/429 errors with automatic backoff and teardown
+
+
 - **REST API** — HTTP endpoints for managing listings and viewing price history
 
 ---
@@ -48,12 +50,13 @@ npm --version   # Should show 9.x.x or higher
 
 ## Installation
 
-### Step 1: Clone or Download the Project
+### Step 1: Clone the Project
 
-Navigate to the project directory:
+Clone the repository and navigate to the project directory:
 
 ```bash
-cd C:\Users\Администратор\Study\AirBnb
+git clone https://github.com/Umalanif/Airbnb_parser.git
+cd Airbnb_parser
 ```
 
 ### Step 2: Install Dependencies
@@ -72,6 +75,17 @@ This will install:
 - **Pino** — Logger
 - **Zod** — Schema validation
 - **Bottleneck** — Rate limiting
+- **Playwright** — Browser automation library
+
+### Step 3: Install Playwright Browsers
+
+Download the Chromium browser required by Playwright:
+
+```bash
+npx playwright install chromium
+```
+
+> **Note:** `npm install` only downloads the Playwright Node.js wrapper. The browser binaries must be installed separately.
 
 ---
 
