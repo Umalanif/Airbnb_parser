@@ -1,0 +1,10 @@
+services:
+  airbnb-parser:
+    build: .
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./prisma/dev.db:/app/prisma/dev.db
+    env_file:
+      - .env
+    restart: unless-stopped
