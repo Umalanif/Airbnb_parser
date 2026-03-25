@@ -173,6 +173,20 @@ This command:
 - Creates `dev.db` SQLite database in the `prisma/` folder
 - Creates tables: `Session`, `Listing`, `PriceLog`
 
+### Step 3: Seed Initial Data (Optional)
+
+Run the seed script to initialize default data:
+
+```bash
+npm run seed
+```
+
+The seed script will:
+1. **Create session** — If `AIRBNB_COOKIE`, `AIRBNB_API_KEY`, and `AIRBNB_USER_AGENT` are set in `.env`, creates a session with `id: airbnb_main`
+2. **Create default listing** — Adds the listing `858637964586872469` if it doesn't exist
+
+> **Note:** The session is only created if environment variables are provided. Otherwise, you'll need to run `npm run session-miner` to extract tokens automatically.
+
 ### (Optional) View Database
 
 Use Prisma Studio to browse and edit data visually:

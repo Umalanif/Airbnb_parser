@@ -19,6 +19,33 @@ let isShuttingDown = false;
 let consecutive403Count = 0;
 
 /**
+ * Calculate default check-in date (today + offset days)
+ * @param {number} offsetDays - Number of days to add to today
+ * @returns {string} ISO date string (YYYY-MM-DD)
+ */
+function getDefaultCheckInDate(offsetDays = 7) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().split('T')[0];
+}
+
+/**
+ * Calculate default check-out date (check-in + stay duration)
+ * @param {string} checkInDate - Check-in date in YYYY-MM-DD format
+ * @param {number} stayDuration - Number of nights
+ * @returns {string} ISO date string (YYYY-MM-DD)
+ */
+function getDefaultCheckOutDate(checkInDate, stayDuration = 5) {
+  const date = new Date(checkInDate);
+  date.setDate(date.getDate() + stayDuration);
+  return date.toISOString().split('T')[0];
+}
+
+// Get dates from workerData or compute defaults
+const defaultCheckIn = workerData?.checkIn || getDefaultCheckInDate(7);
+const defaultCheckOut = workerData?.checkOut || getDefaultCheckOutDate(defaultCheckIn, 5);
+
+/**
  * Send message to parent (Bree orchestrator)
  * @param {Object} data - Message data
  */
@@ -182,8 +209,9 @@ async function main() {
     // Enqueue all listing URLs with individual dates from DB
     for (const listing of listings) {
       // Use individual checkIn/checkOut from each listing record
-      const checkIn = listing.checkIn;
-      const checkOut = listing.checkOut;
+      // Fall back to computed defaults if not set
+      const checkIn = listing.checkIn || defaultCheckIn;
+      const checkOut = listing.checkOut || defaultCheckOut;
 
       const url = buildAirbnbUrl(listing.id, checkIn, checkOut, {
         locale: 'en',

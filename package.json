@@ -4,9 +4,13 @@
   "description": "Airbnb price parser worker",
   "main": "index.js",
   "type": "module",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "scripts": {
     "parser": "node jobs/parser.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "seed": "npx prisma db seed"
   },
   "keywords": [],
   "author": "",

@@ -9,6 +9,33 @@ import logger from './src/utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Calculate default check-in date (today + offset days)
+ * @param {number} offsetDays - Number of days to add to today
+ * @returns {string} ISO date string (YYYY-MM-DD)
+ */
+function getDefaultCheckInDate(offsetDays = 7) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().split('T')[0];
+}
+
+/**
+ * Calculate default check-out date (check-in + stay duration)
+ * @param {string} checkInDate - Check-in date in YYYY-MM-DD format
+ * @param {number} stayDuration - Number of nights
+ * @returns {string} ISO date string (YYYY-MM-DD)
+ */
+function getDefaultCheckOutDate(checkInDate, stayDuration = 5) {
+  const date = new Date(checkInDate);
+  date.setDate(date.getDate() + stayDuration);
+  return date.toISOString().split('T')[0];
+}
+
+// Compute dynamic dates if not provided in .env
+const checkInDate = process.env.CHECK_IN || getDefaultCheckInDate(7);
+const checkOutDate = process.env.CHECK_OUT || getDefaultCheckOutDate(checkInDate, 5);
+
 // Graceful shutdown flag
 let isShuttingDown = false;
 let httpServer = null;
@@ -66,8 +93,8 @@ const bree = new Bree({
       interval: process.env.PARSER_INTERVAL || '5m',
       worker: {
         workerData: {
-          checkIn: process.env.CHECK_IN || '2026-04-15',
-          checkOut: process.env.CHECK_OUT || '2026-04-20',
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
         },
       },
     },

@@ -17,11 +17,36 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 /**
+ * Middleware to protect write endpoints with API key authentication
+ * Checks for x-api-key header and validates against process.env.API_KEY
+ */
+function requireApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+
+  if (!apiKey) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Missing x-api-key header',
+    });
+  }
+
+  if (apiKey !== process.env.API_KEY) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Invalid API key',
+    });
+  }
+
+  next();
+}
+
+/**
  * POST /api/listings
  * Accepts array of Airbnb URLs, validates them, and upserts into Listing table
  * Body: { listings: [{ url: 'https://airbnb.com/rooms/123?check_in=...&check_out=...' }, ...] }
+ * Protected by API key authentication
  */
-app.post('/api/listings', async (req, res) => {
+app.post('/api/listings', requireApiKey, async (req, res) => {
   try {
     const { listings } = req.body;
 
